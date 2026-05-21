@@ -26,6 +26,7 @@ import { CatalogModule } from './modules/catalog/catalog.module';
 import { HooksModule } from './core/hooks';
 import { PluginsModule } from './core/plugins';
 import { PluginsApiModule } from './modules/plugins/plugins.module';
+import { CustomerModule } from './modules/customer/customer.module';
 
 // Only import QueueModule if explicitly enabled to avoid Redis connection errors
 const queueModules: Array<Type | DynamicModule> = [];
@@ -53,7 +54,11 @@ if (process.env.QUEUE_ENABLED === 'true') {
       useFactory: (configService: ConfigService) => ({
         type: 'sqlite' as const,
         database: configService.get<string>('database.database', './data/main.sqlite'),
-        entities: [__dirname + '/modules/auth/**/*.entity{.ts,.js}', __dirname + '/modules/audit/**/*.entity{.ts,.js}'],
+        entities: [
+          __dirname + '/modules/auth/**/*.entity{.ts,.js}',
+          __dirname + '/modules/audit/**/*.entity{.ts,.js}',
+          __dirname + '/modules/customer/**/*.entity{.ts,.js}',
+        ],
         synchronize: true,
         logging: configService.get<boolean>('database.logging', false),
       }),
@@ -159,6 +164,7 @@ if (process.env.QUEUE_ENABLED === 'true') {
     StatusModule, // Phase 3: Status/Stories API
     CatalogModule, // Phase 3: Catalog API (WhatsApp Business)
     PluginsApiModule, // Phase 5: Plugins API
+    CustomerModule, // SaaS customer layer
   ],
 })
 export class AppModule {}

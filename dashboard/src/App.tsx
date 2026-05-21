@@ -1,13 +1,15 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { Loader as Loader2 } from 'lucide-react';
 import { Layout } from './components/Layout';
 import { ToastProvider } from './components/Toast';
 import { RoleProvider, useRole, type UserRole } from './hooks/useRole';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { CustomerAuthProvider, useCustomerAuth } from './hooks/useCustomerAuth';
 import './App.css';
 
+// ── Admin dashboard pages ──────────────────────────────────────────────────
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Sessions = lazy(() => import('./pages/Sessions').then(m => ({ default: m.Sessions })));
@@ -17,6 +19,15 @@ const ApiKeys = lazy(() => import('./pages/ApiKeys').then(m => ({ default: m.Api
 const MessageTester = lazy(() => import('./pages/MessageTester').then(m => ({ default: m.MessageTester })));
 const Infrastructure = lazy(() => import('./pages/Infrastructure').then(m => ({ default: m.Infrastructure })));
 const Plugins = lazy(() => import('./pages/Plugins'));
+
+// ── Customer SaaS pages ───────────────────────────────────────────────────
+const CustomerLogin = lazy(() => import('./pages/customer/CustomerLogin').then(m => ({ default: m.CustomerLogin })));
+const CustomerRegister = lazy(() => import('./pages/customer/CustomerRegister').then(m => ({ default: m.CustomerRegister })));
+const CustomerLayout = lazy(() => import('./pages/customer/CustomerLayout').then(m => ({ default: m.CustomerLayout })));
+const CustomerDashboard = lazy(() => import('./pages/customer/CustomerDashboard').then(m => ({ default: m.CustomerDashboard })));
+const ConnectWhatsApp = lazy(() => import('./pages/customer/ConnectWhatsApp').then(m => ({ default: m.ConnectWhatsApp })));
+const Conversations = lazy(() => import('./pages/customer/Conversations').then(m => ({ default: m.Conversations })));
+const CustomerSettings = lazy(() => import('./pages/customer/CustomerSettings').then(m => ({ default: m.CustomerSettings })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,8 +39,14 @@ const queryClient = new QueryClient({
   },
 });
 
-function AppContent() {
-  // Initialize from sessionStorage to avoid setState in effect
+const loadingFallback = (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+    <Loader2 className="animate-spin" size={32} />
+  </div>
+);
+
+// ── Admin app section ──────────────────────────────────────────────────────
+function AdminApp() {
   const savedKey = sessionStorage.getItem('openwa_api_key');
   const [isAuthenticated, setIsAuthenticated] = useState(!!savedKey);
   const [, setApiKey] = useState(savedKey || '');
@@ -38,8 +55,6 @@ function AppContent() {
   const handleLogin = async (key: string) => {
     setApiKey(key);
     sessionStorage.setItem('openwa_api_key', key);
-
-    // Fetch the role from API
     try {
       const response = await fetch('/api/auth/validate', {
         method: 'POST',
@@ -50,10 +65,8 @@ function AppContent() {
         setRole(data.role as UserRole);
       }
     } catch {
-      // Default to viewer if we can't fetch role
       setRole('viewer');
     }
-
     setIsAuthenticated(true);
   };
 
@@ -64,30 +77,18 @@ function AppContent() {
     sessionStorage.removeItem('openwa_api_key');
   };
 
-  // Re-validate and get role on mount if already authenticated
   useEffect(() => {
     if (!savedKey) return;
-
     fetch('/api/auth/validate', {
       method: 'POST',
       headers: { 'X-API-Key': savedKey },
     })
       .then(res => res.json())
       .then(data => {
-        if (data.valid && data.role) {
-          setRole(data.role as UserRole);
-        }
+        if (data.valid && data.role) setRole(data.role as UserRole);
       })
-      .catch(() => {
-        // Keep existing role from localStorage if validation fails
-      });
+      .catch(() => {});
   }, [savedKey, setRole]);
-
-  const loadingFallback = (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <Loader2 className="animate-spin" size={32} />
-    </div>
-  );
 
   if (!isAuthenticated) {
     return <Suspense fallback={loadingFallback}><Login onLogin={handleLogin} /></Suspense>;
@@ -95,8 +96,7 @@ function AppContent() {
 
   return (
     <ToastProvider>
-      <BrowserRouter>
-        <Suspense fallback={loadingFallback}>
+      <Suspense fallback={loadingFallback}>
         <Routes>
           <Route path="/" element={<Layout onLogout={handleLogout} userRole={role} />}>
             <Route index element={<Dashboard />} />
@@ -110,9 +110,58 @@ function AppContent() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
-        </Suspense>
-      </BrowserRouter>
+      </Suspense>
     </ToastProvider>
+  );
+}
+
+// ── Customer app section ───────────────────────────────────────────────────
+function CustomerApp() {
+  const { isAuthenticated } = useCustomerAuth();
+
+  return (
+    <Suspense fallback={loadingFallback}>
+      <Routes>
+        <Route
+          path="login"
+          element={isAuthenticated ? <Navigate to="/customer" replace /> : <CustomerLogin />}
+        />
+        <Route
+          path="register"
+          element={isAuthenticated ? <Navigate to="/customer" replace /> : <CustomerRegister />}
+        />
+        {isAuthenticated ? (
+          <Route element={<CustomerLayout />}>
+            <Route index element={<CustomerDashboard />} />
+            <Route path="connect" element={<ConnectWhatsApp />} />
+            <Route path="conversations" element={<Conversations />} />
+            <Route path="settings" element={<CustomerSettings />} />
+            <Route path="*" element={<Navigate to="/customer" replace />} />
+          </Route>
+        ) : (
+          <Route path="*" element={<Navigate to="/customer/login" replace />} />
+        )}
+      </Routes>
+    </Suspense>
+  );
+}
+
+// ── Root ───────────────────────────────────────────────────────────────────
+function AppRoutes() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/customer/*" element={<CustomerApp />} />
+        <Route
+          path="/*"
+          element={
+            <RoleProvider>
+              <AdminApp />
+            </RoleProvider>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
@@ -120,9 +169,9 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <RoleProvider>
-          <AppContent />
-        </RoleProvider>
+        <CustomerAuthProvider>
+          <AppRoutes />
+        </CustomerAuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );
