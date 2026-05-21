@@ -8,7 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 import { Customer, CustomerPlan } from './entities/customer.entity';
 import { CustomerSessionEntity, CustomerSessionStatus } from './entities/customer-session.entity';

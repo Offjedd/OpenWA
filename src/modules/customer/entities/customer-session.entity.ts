@@ -42,10 +42,10 @@ export class CustomerSessionEntity {
   })
   status: CustomerSessionStatus;
 
-  @Column({ name: 'phone_number', nullable: true })
+  @Column({ name: 'phone_number', type: 'text', nullable: true })
   phoneNumber: string | null;
 
-  @Column({ name: 'connected_at', nullable: true })
+  @Column({ name: 'connected_at', type: 'datetime', nullable: true })
   connectedAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })
