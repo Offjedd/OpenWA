@@ -25,7 +25,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  return (await res.json()) as T;
 }
 
 async function edgeAuth<T>(action: string, body: Record<string, string>): Promise<T> {
