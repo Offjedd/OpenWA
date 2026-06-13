@@ -1,16 +1,37 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { spawn, type ChildProcess } from 'child_process';
-import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+import { existsSync } from 'fs';
 
-// Plugin that builds and starts the NestJS backend alongside Vite
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Plugin that builds (if needed) and starts the NestJS backend alongside Vite
 function nestBackendPlugin() {
   let backendProcess: ChildProcess | null = null;
-  const rootDir = path.resolve(__dirname, '..');
+  const rootDir = resolve(__dirname, '..');
+  const distMain = resolve(rootDir, 'dist', 'main.js');
+
+  function launchBackend() {
+    if (backendProcess) return;
+    console.log('[backend] Starting NestJS on :2785...');
+    backendProcess = spawn('node', ['dist/main.js'], {
+      cwd: rootDir,
+      stdio: 'inherit',
+      env: { ...process.env, PORT: '2785' },
+      shell: false,
+    });
+    backendProcess.on('close', () => { backendProcess = null; });
+  }
 
   function startBackend() {
-    if (backendProcess) return;
-    console.log('[backend] Building NestJS...');
+    if (existsSync(distMain)) {
+      launchBackend();
+      return;
+    }
+    console.log('[backend] Building NestJS (first run)...');
     const build = spawn('npx', ['nest', 'build'], {
       cwd: rootDir,
       stdio: 'inherit',
@@ -21,16 +42,7 @@ function nestBackendPlugin() {
         console.error('[backend] NestJS build failed with code', code);
         return;
       }
-      console.log('[backend] Starting NestJS on :2785...');
-      backendProcess = spawn('node', ['dist/main.js'], {
-        cwd: rootDir,
-        stdio: 'inherit',
-        env: { ...process.env, PORT: '2785' },
-        shell: false,
-      });
-      backendProcess.on('close', () => {
-        backendProcess = null;
-      });
+      launchBackend();
     });
   }
 
@@ -42,16 +54,15 @@ function nestBackendPlugin() {
   };
 }
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), nestBackendPlugin()],
-  appType: 'spa', // Enable SPA fallback for client-side routing
+  appType: 'spa',
   define: {
     __APP_VERSION__: JSON.stringify(process.env.APP_VERSION || '0.2.1'),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   server: {
-    port: 2886,
+    port: 5173,
     proxy: {
       '/api': {
         target: 'http://localhost:2785',
