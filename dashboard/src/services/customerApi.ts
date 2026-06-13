@@ -1,4 +1,5 @@
 const API_BASE = '/api';
+const EDGE_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 function getToken(): string | null {
   return localStorage.getItem('customer_token');
@@ -25,6 +26,29 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
+}
+
+async function edgeAuth<T>(action: string, body: Record<string, string>): Promise<T> {
+  const res = await fetch(`${EDGE_BASE}/customer-auth?action=${action}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  return data as T;
+}
+
+async function authRequest<T>(path: string, body: Record<string, string>, action: string): Promise<T> {
+  try {
+    return await request<T>(path, { method: 'POST', body: JSON.stringify(body) });
+  } catch (err) {
+    // Backend unreachable (published/static site) — fall through to edge function
+    if (err instanceof Error && (err.message.includes('404') || err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
+      return edgeAuth<T>(action, body);
+    }
+    throw err;
+  }
 }
 
 async function uploadFile(path: string, file: File): Promise<UploadResult> {
@@ -110,16 +134,18 @@ export interface UploadResult {
 
 export const customerAuthApi = {
   register: (fullName: string, email: string, password: string) =>
-    request<{ token: string; customer: CustomerProfile }>('/customers/register', {
-      method: 'POST',
-      body: JSON.stringify({ fullName, email, password }),
-    }),
+    authRequest<{ token: string; customer: CustomerProfile }>(
+      '/customers/register',
+      { fullName, email, password },
+      'register',
+    ),
 
   login: (email: string, password: string) =>
-    request<{ token: string; customer: CustomerProfile }>('/customers/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }),
+    authRequest<{ token: string; customer: CustomerProfile }>(
+      '/customers/login',
+      { email, password },
+      'login',
+    ),
 
   getProfile: () => request<CustomerProfile>('/customers/me'),
 
