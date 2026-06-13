@@ -42,12 +42,8 @@ async function edgeAuth<T>(action: string, body: Record<string, string>): Promis
 async function authRequest<T>(path: string, body: Record<string, string>, action: string): Promise<T> {
   try {
     return await request<T>(path, { method: 'POST', body: JSON.stringify(body) });
-  } catch (err) {
-    // Backend unreachable (published/static site) — fall through to edge function
-    if (err instanceof Error && (err.message.includes('404') || err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
-      return edgeAuth<T>(action, body);
-    }
-    throw err;
+  } catch {
+    return edgeAuth<T>(action, body);
   }
 }
 
