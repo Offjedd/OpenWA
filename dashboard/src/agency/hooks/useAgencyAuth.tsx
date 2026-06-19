@@ -6,7 +6,7 @@ interface AgencyAuthCtx {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; redirectTo?: string }>;
   signUp: (email: string, password: string, agencyName: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
@@ -33,8 +33,33 @@ export function AgencyAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+
+    const userId = data.user?.id;
+    if (userId) {
+      const { data: agency } = await supabase
+        .from('agencies')
+        .select('id')
+        .eq('owner_id', userId)
+        .maybeSingle();
+
+      if (!agency) {
+        // No agency — route to first sub-account they belong to
+        const { data: membership } = await supabase
+          .from('user_sub_accounts')
+          .select('sub_account_id')
+          .eq('user_id', userId)
+          .limit(1)
+          .maybeSingle();
+
+        if (membership?.sub_account_id) {
+          return { error: null, redirectTo: `/app/${membership.sub_account_id}/dashboard` };
+        }
+      }
+    }
+
+    return { error: null, redirectTo: '/agency' };
   };
 
   const signUp = async (email: string, password: string, agencyName: string) => {

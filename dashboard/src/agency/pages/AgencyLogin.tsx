@@ -21,7 +21,7 @@ export const AgencyLogin: React.FC = () => {
       setError(result.error);
       setIsLoading(false);
     } else {
-      navigate('/agency');
+      navigate(result.redirectTo ?? '/agency');
     }
   };
 

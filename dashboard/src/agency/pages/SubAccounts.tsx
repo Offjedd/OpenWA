@@ -131,6 +131,7 @@ export function SubAccounts() {
   const [subAccounts, setSubAccounts] = useState<SubAccount[]>([]);
   const [contactCounts, setContactCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -161,16 +162,22 @@ export function SubAccounts() {
   const loadSubAccounts = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
 
       const { data: subAcctsData, error: subAcctsError } = await supabase
         .from('sub_accounts')
         .select('*')
         .eq('agency_id', agencyId);
 
-      if (!subAcctsError && subAcctsData) {
+      if (subAcctsError) {
+        console.error('Error loading sub-accounts:', subAcctsError);
+        setLoadError(subAcctsError.message);
+        return;
+      }
+
+      if (subAcctsData) {
         setSubAccounts(subAcctsData as SubAccount[]);
 
-        // Load contact counts for each sub-account
         const counts: Record<string, number> = {};
         for (const subAcct of subAcctsData) {
           const { count } = await supabase
@@ -183,6 +190,7 @@ export function SubAccounts() {
       }
     } catch (err) {
       console.error('Error loading sub-accounts:', err);
+      setLoadError('Unexpected error loading sub-accounts');
     } finally {
       setLoading(false);
     }
@@ -263,6 +271,11 @@ export function SubAccounts() {
       </div>
 
       {/* Sub-Account Cards Grid */}
+      {loadError && (
+        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '16px', marginBottom: '16px', color: '#b91c1c', fontSize: '14px' }}>
+          Error: {loadError}
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
         {subAccounts.map((subAccount) => (
           <div
