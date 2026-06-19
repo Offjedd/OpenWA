@@ -226,6 +226,7 @@ function AppRoutes() {
           <Route path="*" element={<Navigate to="dashboard" replace />} />
         </Route>
         <Route path="/customer/*" element={<CustomerApp />} />
+        <Route path="/" element={<Navigate to="/agency/login" replace />} />
         <Route
           path="/*"
           element={
