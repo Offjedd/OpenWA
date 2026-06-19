@@ -125,13 +125,33 @@ function CreateSubAccountModal({ isOpen, onClose, onSubmit, isLoading }: CreateS
 }
 
 export function SubAccounts() {
-  const { agencyId } = useAgencyOutlet();
+  const { agencyId: outletAgencyId } = useAgencyOutlet();
   const navigate = useNavigate();
+  const [agencyId, setAgencyId] = useState<string | undefined>(outletAgencyId);
   const [subAccounts, setSubAccounts] = useState<SubAccount[]>([]);
   const [contactCounts, setContactCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+
+  useEffect(() => {
+    if (outletAgencyId) {
+      setAgencyId(outletAgencyId);
+    } else {
+      // Fallback: resolve agency from current user session
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        supabase
+          .from('agencies')
+          .select('id')
+          .eq('owner_id', user.id)
+          .single()
+          .then(({ data }) => {
+            if (data?.id) setAgencyId(data.id);
+          });
+      });
+    }
+  }, [outletAgencyId]);
 
   useEffect(() => {
     if (!agencyId) return;
@@ -142,7 +162,6 @@ export function SubAccounts() {
     try {
       setLoading(true);
 
-      // Load sub-accounts
       const { data: subAcctsData, error: subAcctsError } = await supabase
         .from('sub_accounts')
         .select('*')

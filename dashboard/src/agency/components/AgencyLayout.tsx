@@ -20,7 +20,7 @@ export function AgencyLayout() {
           .eq('owner_id', user.id)
           .single();
 
-        if (error) {
+        if (error && error.code !== 'PGRST116') {
           console.error('Error loading agency:', error);
         } else if (data) {
           setAgency(data as Agency);
