@@ -7,9 +7,29 @@ import { ToastProvider } from './components/Toast';
 import { RoleProvider, useRole, type UserRole } from './hooks/useRole';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CustomerAuthProvider, useCustomerAuth } from './hooks/useCustomerAuth';
+import { AgencyAuthProvider, useAgencyAuth } from './agency/hooks/useAgencyAuth';
 import './App.css';
 
-// ── Admin dashboard pages ──────────────────────────────────────────────────
+// ── AgencyOS pages ────────────────────────────────────────────────────────────
+const AgencyLogin = lazy(() => import('./agency/pages/AgencyLogin').then(m => ({ default: m.AgencyLogin })));
+const AgencyRegister = lazy(() => import('./agency/pages/AgencyRegister').then(m => ({ default: m.AgencyRegister })));
+const AgencyLayout = lazy(() => import('./agency/components/AgencyLayout').then(m => ({ default: m.AgencyLayout })));
+const AgencyDashboard = lazy(() => import('./agency/pages/AgencyDashboard').then(m => ({ default: m.AgencyDashboard })));
+const SubAccountsPage = lazy(() => import('./agency/pages/SubAccounts').then(m => ({ default: m.SubAccounts })));
+const AgencySettings = lazy(() => import('./agency/pages/AgencySettings').then(m => ({ default: m.AgencySettings })));
+const SubAccountLayout = lazy(() => import('./agency/components/SubAccountLayout').then(m => ({ default: m.SubAccountLayout })));
+const SubAccountDashboard = lazy(() => import('./agency/pages/SubAccountDashboard'));
+const AgencyConversations = lazy(() => import('./agency/pages/Conversations'));
+const AgencyContacts = lazy(() => import('./agency/pages/Contacts').then(m => ({ default: m.Contacts })));
+const AgencyOpportunities = lazy(() => import('./agency/pages/Opportunities').then(m => ({ default: m.Opportunities })));
+const AgencyCalendar = lazy(() => import('./agency/pages/CalendarPage').then(m => ({ default: m.CalendarPage })));
+const AgencyAutomations = lazy(() => import('./agency/pages/Automations').then(m => ({ default: m.Automations })));
+const AgencyMedia = lazy(() => import('./agency/pages/MediaPage').then(m => ({ default: m.MediaPage })));
+const AgencyAiAgents = lazy(() => import('./agency/pages/AiAgents').then(m => ({ default: m.AiAgents })));
+const AgencyQrCodes = lazy(() => import('./agency/pages/QrCodes').then(m => ({ default: m.QrCodes })));
+const SubAccountSettings = lazy(() => import('./agency/pages/SubAccountSettings').then(m => ({ default: m.SubAccountSettings })));
+
+// ── Admin dashboard pages (OpenWA gateway) ────────────────────────────────
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Sessions = lazy(() => import('./pages/Sessions').then(m => ({ default: m.Sessions })));
@@ -146,11 +166,65 @@ function CustomerApp() {
   );
 }
 
+// ── AgencyOS section ──────────────────────────────────────────────────────
+function AgencyApp() {
+  const { user, loading } = useAgencyAuth();
+
+  if (loading) return loadingFallback;
+
+  return (
+    <Suspense fallback={loadingFallback}>
+      <Routes>
+        <Route
+          path="login"
+          element={user ? <Navigate to="/agency" replace /> : <AgencyLogin />}
+        />
+        <Route
+          path="register"
+          element={user ? <Navigate to="/agency" replace /> : <AgencyRegister />}
+        />
+        {user ? (
+          <Route element={<AgencyLayout />}>
+            <Route index element={<AgencyDashboard />} />
+            <Route path="sub-accounts" element={<SubAccountsPage />} />
+            <Route path="settings" element={<AgencySettings />} />
+            <Route path="*" element={<Navigate to="/agency" replace />} />
+          </Route>
+        ) : (
+          <Route path="*" element={<Navigate to="/agency/login" replace />} />
+        )}
+      </Routes>
+    </Suspense>
+  );
+}
+
 // ── Root ───────────────────────────────────────────────────────────────────
 function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/agency/*" element={<AgencyApp />} />
+        <Route
+          path="/app/:subAccountId/*"
+          element={
+            <Suspense fallback={loadingFallback}>
+              <SubAccountLayout />
+            </Suspense>
+          }
+        >
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Suspense fallback={loadingFallback}><SubAccountDashboard /></Suspense>} />
+          <Route path="conversations" element={<Suspense fallback={loadingFallback}><AgencyConversations /></Suspense>} />
+          <Route path="contacts" element={<Suspense fallback={loadingFallback}><AgencyContacts /></Suspense>} />
+          <Route path="opportunities" element={<Suspense fallback={loadingFallback}><AgencyOpportunities /></Suspense>} />
+          <Route path="calendar" element={<Suspense fallback={loadingFallback}><AgencyCalendar /></Suspense>} />
+          <Route path="automations" element={<Suspense fallback={loadingFallback}><AgencyAutomations /></Suspense>} />
+          <Route path="media" element={<Suspense fallback={loadingFallback}><AgencyMedia /></Suspense>} />
+          <Route path="ai-agents" element={<Suspense fallback={loadingFallback}><AgencyAiAgents /></Suspense>} />
+          <Route path="qr-codes" element={<Suspense fallback={loadingFallback}><AgencyQrCodes /></Suspense>} />
+          <Route path="settings" element={<Suspense fallback={loadingFallback}><SubAccountSettings /></Suspense>} />
+          <Route path="*" element={<Navigate to="dashboard" replace />} />
+        </Route>
         <Route path="/customer/*" element={<CustomerApp />} />
         <Route
           path="/*"
@@ -169,9 +243,11 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <CustomerAuthProvider>
-          <AppRoutes />
-        </CustomerAuthProvider>
+        <AgencyAuthProvider>
+          <CustomerAuthProvider>
+            <AppRoutes />
+          </CustomerAuthProvider>
+        </AgencyAuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );
