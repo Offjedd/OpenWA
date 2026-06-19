@@ -122,10 +122,15 @@ export interface AutomationAction {
 export interface AgencyMedia {
   id: string;
   sub_account_id: string;
+  file_name: string;
   name: string;
+  public_url: string;
   url: string;
+  mime_type: string | null;
   type: string | null;
+  file_size: number | null;
   size: number | null;
+  storage_path: string;
   folder: string;
   created_at: string;
 }

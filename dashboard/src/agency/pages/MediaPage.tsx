@@ -379,7 +379,7 @@ export const MediaPage: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => handleDeleteFile(file.id, file.url)}
+                    onClick={() => handleDeleteFile(file.id, file.storage_path)}
                     style={{
                       padding: '6px 10px',
                       border: '1px solid #fecaca',
